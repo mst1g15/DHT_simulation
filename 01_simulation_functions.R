@@ -1,16 +1,17 @@
 ###############################################################################
-# Date: 10 July 2024 
+# Date: 30 July 2024 
 # Author: Mia Tackney 
 ###############################################################################
 
 #Purpose: this script contains functions required to run the simulation 
 
 
-generate_daily_data <- function(season_prop=NULL, weekno=4, season_effect=NULL, observer_effect=NULL, 
+generate_daily_data <- function(season_prop=NULL, weekno=4, rand_ratio=NULL, season_effect=NULL, observer_effect=NULL, 
                                 miss_type=NULL, miss_prop_n=NULL, miss_prop_days=NULL){
   #Purpose: Generate daily time spent in MVPA for a setting inspired by the Bellerophon Phase II trial on INOPulse 
   #Inputs:  season_prop: fraction of participants who experience a seasonal effect 
   #         weekno: number of weeks for follow-up
+  #         rand_ratio: randomization ratio, assumed by default as 2:1 for treatment:control and 1:1 otherwise. 
   #         season_effect: scalar for the effect of season 
   #         observer effect: scalar for the effect of observer 
   #         miss_type: set either to "MCAR" (Missing Completely at Random) or "MNAR" (Missing Not at Random)
@@ -23,8 +24,14 @@ generate_daily_data <- function(season_prop=NULL, weekno=4, season_effect=NULL, 
   dayno=7*weekno
   ID <- rep(1:44, each=dayno)
   
-  #assume 30 patients in treatment and 14 in control 
-  treat <- c(rep(1, 30), rep(0, 14))
+  #tratment assignment vector 
+  if(is.null(rand_ratio)){
+    #assume by default a 2:1 ratio to treatment:control
+    treat= sort((sample(c(1, 0), 44, replace=TRUE, prob=c(2/3, 1/3))), decreasing=TRUE)
+  }else{
+    #use a 1:1 ratio for treatment:control
+    treat=sort((sample(c(1, 0), 44, replace=TRUE, prob=c(1/2, 1/2))), decreasing=TRUE)
+  }
   
   # based on the distribution of MVPA at baseline in Table 1 of paper 
   baseline <- rlnorm(44, 4.155, 0.6129)
@@ -53,7 +60,7 @@ generate_daily_data <- function(season_prop=NULL, weekno=4, season_effect=NULL, 
   
   #generate complete data
   dat<- tibble( ID=ID, daily_outcome=daily_outcome, 
-                treat=c(rep(1, 30*dayno), rep(0, 14*dayno)), 
+                treat=c(rep(1, sum(treat==1)*dayno), rep(0, sum(treat==0)*dayno)), 
                 baseline=rep(baseline, each=dayno),
                 week=week, day=rep(1:dayno, 44)) %>% group_by(ID) 
   
